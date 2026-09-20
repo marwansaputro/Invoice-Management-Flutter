@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../core/widgets/invoice_widgets.dart';
@@ -17,9 +18,10 @@ class InvoiceDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoices = ref.watch(invoiceRepositoryProvider);
     final invoice = invoices.where((i) => i.id == invoiceId).cast<Invoice?>().firstOrNull;
+    final l10n = AppStrings(ref.watch(localeProvider));
 
     if (invoice == null) {
-      return const Scaffold(body: Center(child: Text('Invoice not found')));
+      return Scaffold(body: Center(child: Text(l10n.invoiceNotFound)));
     }
 
     final customer = ref.watch(customerRepositoryProvider.notifier).byId(invoice.customerId);
@@ -30,15 +32,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.copy_all_rounded),
-            tooltip: 'Duplicate',
+            tooltip: l10n.duplicateTooltip,
             onPressed: () {
               final copy = ref.read(invoiceRepositoryProvider.notifier).duplicate(invoice);
-              AppSnackbar.show(context, message: 'Invoice duplicated as ${copy.invoiceNumber}');
+              AppSnackbar.show(context, message: l10n.invoiceDuplicatedAs(copy.invoiceNumber));
             },
           ),
           IconButton(
             icon: const Icon(Icons.edit_rounded),
-            tooltip: 'Edit',
+            tooltip: l10n.editTooltip,
             onPressed: () => Navigator.of(context)
                 .push(SlideFadeRoute(page: CreateInvoiceScreen(existingInvoiceId: invoice.id))),
           ),
@@ -59,14 +61,14 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(customer?.name ?? 'Walk-in Customer',
+                            child: Text(customer?.name ?? l10n.walkInCustomer,
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
                           ),
                           StatusBadge(status: invoice.status),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text('Issued ${_fmt(invoice.invoiceDate)}',
+                      Text(l10n.issuedOn(_fmt(invoice.invoiceDate)),
                           style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
                       const SizedBox(height: 14),
                       MoneyText(value: invoice.total, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: AppColors.themedPrimary(context))),
@@ -78,7 +80,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             AnimatedEntry(
               delay: const Duration(milliseconds: 80),
-              child: const Text('Items', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              child: Text(l10n.itemsTitle, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
             const SizedBox(height: 10),
             ...invoice.items.asMap().entries.map(
@@ -105,7 +107,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             const SizedBox(height: 18),
             AnimatedEntry(
               delay: const Duration(milliseconds: 260),
-              child: const Text('Update Status', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              child: Text(l10n.updateStatus, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
             const SizedBox(height: 10),
             AnimatedEntry(
@@ -125,7 +127,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: selected ? AppColors.primary : Theme.of(context).dividerColor),
                       ),
-                      child: Text(s.label,
+                      child: Text(l10n.statusLabel(s),
                           style: TextStyle(
                               color: selected ? Colors.white : AppColors.textSecondary,
                               fontWeight: FontWeight.w700,
@@ -139,7 +141,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
             AnimatedEntry(
               delay: const Duration(milliseconds: 340),
               child: AppButton(
-                label: 'Delete Invoice',
+                label: l10n.deleteInvoice,
                 type: AppButtonStyleType.danger,
                 icon: Icons.delete_outline_rounded,
                 expand: true,
@@ -161,7 +163,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(SlideFadeRoute(page: InvoicePreviewScreen(invoiceId: invoice.id))),
         icon: const Icon(Icons.visibility_rounded),
-        label: const Text('Preview'),
+        label: Text(l10n.preview),
       ),
     );
   }
@@ -169,12 +171,13 @@ class InvoiceDetailScreen extends ConsumerWidget {
   String _fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
 
-class _ConfirmDeleteDialog extends StatelessWidget {
+class _ConfirmDeleteDialog extends ConsumerWidget {
   final String invoiceNumber;
   const _ConfirmDeleteDialog({required this.invoiceNumber});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Center(
       child: Material(
         color: Colors.transparent,
@@ -190,16 +193,16 @@ class _ConfirmDeleteDialog extends StatelessWidget {
             children: [
               const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 36),
               const SizedBox(height: 14),
-              Text('Delete $invoiceNumber?', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(l10n.confirmDeleteInvoiceTitle(invoiceNumber), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               const SizedBox(height: 8),
-              const Text('This action cannot be undone from here.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text(l10n.confirmDeleteInvoiceMessage,
+                  textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
                     child: AppButton(
-                      label: 'Cancel',
+                      label: l10n.cancel,
                       type: AppButtonStyleType.outline,
                       onPressed: () => Navigator.pop(context, false),
                     ),
@@ -207,7 +210,7 @@ class _ConfirmDeleteDialog extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: AppButton(
-                      label: 'Delete',
+                      label: l10n.delete,
                       type: AppButtonStyleType.danger,
                       onPressed: () => Navigator.pop(context, true),
                     ),

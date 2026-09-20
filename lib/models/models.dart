@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:hive/hive.dart';
+
+String? _bytesToBase64(List<int>? bytes) => bytes == null ? null : base64Encode(bytes);
+List<int>? _bytesFromBase64(String? b64) => b64 == null ? null : base64Decode(b64);
 
 /// Unified status used for both invoice workflow state and payment
 /// badge display (spec sections 6, 8, 28 combined for simplicity —
@@ -58,6 +63,24 @@ class InvoiceItem {
       tax: tax ?? this.tax,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'price': price,
+        'quantity': quantity,
+        'discount': discount,
+        'tax': tax,
+      };
+
+  factory InvoiceItem.fromJson(Map<String, dynamic> json) => InvoiceItem(
+        id: json['id'] as String,
+        name: json['name'] as String? ?? '',
+        price: (json['price'] as num?)?.toDouble() ?? 0,
+        quantity: (json['quantity'] as num?)?.toDouble() ?? 1,
+        discount: (json['discount'] as num?)?.toDouble() ?? 0,
+        tax: (json['tax'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class InvoiceItemAdapter extends TypeAdapter<InvoiceItem> {
@@ -115,6 +138,26 @@ class Customer extends HiveObject {
     this.address = '',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'address': address,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Customer.fromJson(Map<String, dynamic> json) => Customer(
+        id: json['id'] as String,
+        name: json['name'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        email: json['email'] as String? ?? '',
+        address: json['address'] as String? ?? '',
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+      );
 }
 
 class CustomerAdapter extends TypeAdapter<Customer> {
@@ -208,6 +251,65 @@ class Invoice extends HiveObject {
   double get subtotal => items.fold(0.0, (sum, i) => sum + i.lineSubtotal);
   double get total => subtotal - discount + tax + shipping;
   double get balanceDue => (total - amountPaid).clamp(0, double.infinity);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'invoiceNumber': invoiceNumber,
+        'customerId': customerId,
+        'invoiceDate': invoiceDate.toIso8601String(),
+        'dueDate': dueDate?.toIso8601String(),
+        'items': items.map((i) => i.toJson()).toList(),
+        'discount': discount,
+        'tax': tax,
+        'shipping': shipping,
+        'amountPaid': amountPaid,
+        'status': status.name,
+        'notes': notes,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+        'isFavorite': isFavorite,
+        'poNumber': poNumber,
+        'paymentMethod': paymentMethod,
+        'attachmentBytes': _bytesToBase64(attachmentBytes),
+        'signatureBytes': _bytesToBase64(signatureBytes),
+        'isApproved': isApproved,
+        'approverName': approverName,
+      };
+
+  factory Invoice.fromJson(Map<String, dynamic> json) => Invoice(
+        id: json['id'] as String,
+        invoiceNumber: json['invoiceNumber'] as String? ?? '',
+        customerId: json['customerId'] as String? ?? '',
+        invoiceDate: DateTime.tryParse(json['invoiceDate'] as String? ?? '') ??
+            DateTime.now(),
+        dueDate: json['dueDate'] != null
+            ? DateTime.tryParse(json['dueDate'] as String)
+            : null,
+        items: (json['items'] as List? ?? [])
+            .map((e) => InvoiceItem.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        discount: (json['discount'] as num?)?.toDouble() ?? 0,
+        tax: (json['tax'] as num?)?.toDouble() ?? 0,
+        shipping: (json['shipping'] as num?)?.toDouble() ?? 0,
+        amountPaid: (json['amountPaid'] as num?)?.toDouble() ?? 0,
+        status: InvoiceStatus.values.firstWhere(
+            (s) => s.name == json['status'],
+            orElse: () => InvoiceStatus.draft),
+        notes: json['notes'] as String? ?? '',
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.tryParse(json['updatedAt'] as String)
+            : null,
+        isFavorite: json['isFavorite'] as bool? ?? false,
+        poNumber: json['poNumber'] as String? ?? '',
+        paymentMethod: json['paymentMethod'] as String? ?? '',
+        attachmentBytes: _bytesFromBase64(json['attachmentBytes'] as String?),
+        signatureBytes: _bytesFromBase64(json['signatureBytes'] as String?),
+        isApproved: json['isApproved'] as bool? ?? false,
+        approverName: json['approverName'] as String? ?? '',
+      );
 }
 
 class InvoiceAdapter extends TypeAdapter<Invoice> {
@@ -323,6 +425,37 @@ class BusinessProfile extends HiveObject {
     this.eWalletProvider = 'OVO',
     this.eWalletNumber = '',
   }) : acceptedPaymentMethods = acceptedPaymentMethods ?? ['Bank Transfer'];
+
+  Map<String, dynamic> toJson() => {
+        'businessName': businessName,
+        'address': address,
+        'phone': phone,
+        'email': email,
+        'bankName': bankName,
+        'bankAccountName': bankAccountName,
+        'bankAccountNumber': bankAccountNumber,
+        'acceptedPaymentMethods': acceptedPaymentMethods,
+        'logoBytes': _bytesToBase64(logoBytes),
+        'qrisId': qrisId,
+        'eWalletProvider': eWalletProvider,
+        'eWalletNumber': eWalletNumber,
+      };
+
+  factory BusinessProfile.fromJson(Map<String, dynamic> json) => BusinessProfile(
+        businessName: json['businessName'] as String? ?? 'My Business',
+        address: json['address'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        email: json['email'] as String? ?? '',
+        bankName: json['bankName'] as String? ?? '',
+        bankAccountName: json['bankAccountName'] as String? ?? '',
+        bankAccountNumber: json['bankAccountNumber'] as String? ?? '',
+        acceptedPaymentMethods:
+            (json['acceptedPaymentMethods'] as List?)?.cast<String>(),
+        logoBytes: _bytesFromBase64(json['logoBytes'] as String?),
+        qrisId: json['qrisId'] as String? ?? '',
+        eWalletProvider: json['eWalletProvider'] as String? ?? 'OVO',
+        eWalletNumber: json['eWalletNumber'] as String? ?? '',
+      );
 }
 
 class BusinessProfileAdapter extends TypeAdapter<BusinessProfile> {
@@ -410,6 +543,38 @@ class InvoiceSettingsModel extends HiveObject {
     this.savedApproverName = '',
     this.locale = 'en',
   });
+
+  Map<String, dynamic> toJson() => {
+        'currencySymbol': currencySymbol,
+        'invoiceNumberPrefix': invoiceNumberPrefix,
+        'nextInvoiceSequence': nextInvoiceSequence,
+        'defaultDueDays': defaultDueDays,
+        'defaultTaxPercent': defaultTaxPercent,
+        'themeMode': themeMode,
+        'notificationsEnabled': notificationsEnabled,
+        'invoiceTemplate': invoiceTemplate,
+        'savedSignatureBytes': _bytesToBase64(savedSignatureBytes),
+        'savedIsApproved': savedIsApproved,
+        'savedApproverName': savedApproverName,
+        'locale': locale,
+      };
+
+  factory InvoiceSettingsModel.fromJson(Map<String, dynamic> json) =>
+      InvoiceSettingsModel(
+        currencySymbol: json['currencySymbol'] as String? ?? 'Rp',
+        invoiceNumberPrefix: json['invoiceNumberPrefix'] as String? ?? 'INV',
+        nextInvoiceSequence: json['nextInvoiceSequence'] as int? ?? 1,
+        defaultDueDays: json['defaultDueDays'] as int? ?? 0,
+        defaultTaxPercent: (json['defaultTaxPercent'] as num?)?.toDouble() ?? 0,
+        themeMode: json['themeMode'] as int? ?? 0,
+        notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+        invoiceTemplate: json['invoiceTemplate'] as int? ?? 0,
+        savedSignatureBytes:
+            _bytesFromBase64(json['savedSignatureBytes'] as String?),
+        savedIsApproved: json['savedIsApproved'] as bool? ?? false,
+        savedApproverName: json['savedApproverName'] as String? ?? '',
+        locale: json['locale'] as String? ?? 'en',
+      );
 }
 
 class InvoiceSettingsAdapter extends TypeAdapter<InvoiceSettingsModel> {
@@ -466,5 +631,70 @@ class InvoiceSettingsAdapter extends TypeAdapter<InvoiceSettingsModel> {
       ..write(obj.savedApproverName)
       ..writeByte(11)
       ..write(obj.locale);
+  }
+}
+
+/// A saved product/service with a price preset, so line items don't have
+/// to be retyped from scratch on every invoice.
+class Product extends HiveObject {
+  String id;
+  String name;
+  double price;
+  DateTime createdAt;
+
+  Product({
+    required this.id,
+    required this.name,
+    required this.price,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'price': price,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Product.fromJson(Map<String, dynamic> json) => Product(
+        id: json['id'] as String,
+        name: json['name'] as String? ?? '',
+        price: (json['price'] as num?)?.toDouble() ?? 0,
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+      );
+}
+
+class ProductAdapter extends TypeAdapter<Product> {
+  @override
+  final int typeId = 5;
+
+  @override
+  Product read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return Product(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      price: (fields[2] as num).toDouble(),
+      createdAt: fields[3] as DateTime? ?? DateTime.now(),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, Product obj) {
+    writer
+      ..writeByte(4)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.price)
+      ..writeByte(3)
+      ..write(obj.createdAt);
   }
 }

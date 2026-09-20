@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/pdf_generator.dart';
 import '../../core/widgets/invoice_widgets.dart';
@@ -60,7 +61,7 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen>
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
     AppSnackbar.show(context,
-        message: 'Invoice sent successfully',
+        message: AppStrings(ref.read(localeProvider)).invoiceSentSuccessfully,
         icon: Icons.check_circle_rounded,
         color: AppColors.success);
     await Future.delayed(const Duration(milliseconds: 900));
@@ -125,7 +126,8 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen>
         invoice: invoice,
         customer: customer,
         business: business,
-        template: AppDatabase.settings.invoiceTemplate);
+        template: AppDatabase.settings.invoiceTemplate,
+        locale: ref.read(localeProvider));
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/${invoice.invoiceNumber}.pdf');
     await file.writeAsBytes(bytes);
@@ -145,8 +147,9 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen>
   Widget build(BuildContext context) {
     ref.watch(invoiceRepositoryProvider);
     final invoice = _invoice;
+    final l10n = AppStrings(ref.watch(localeProvider));
     if (invoice == null) {
-      return const Scaffold(body: Center(child: Text('Invoice not found')));
+      return Scaffold(body: Center(child: Text(l10n.invoiceNotFound)));
     }
     final customer =
         ref.watch(customerRepositoryProvider.notifier).byId(invoice.customerId);
@@ -163,8 +166,8 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen>
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Preview',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        title: Text(l10n.preview,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             icon: _generatingPdf
@@ -259,7 +262,7 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen>
   }
 }
 
-class _SendFab extends StatelessWidget {
+class _SendFab extends ConsumerWidget {
   final _SendState state;
   final VoidCallback onSend;
   final VoidCallback onShare;
@@ -267,7 +270,8 @@ class _SendFab extends StatelessWidget {
       {required this.state, required this.onSend, required this.onShare});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return PressableScale(
       scaleDown: 0.94,
       onTap: state == _SendState.idle
@@ -317,9 +321,9 @@ class _SendFab extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               switch (state) {
-                _SendState.idle => 'Send',
-                _SendState.loading => 'Sending...',
-                _SendState.success => 'Sent!',
+                _SendState.idle => l10n.send,
+                _SendState.loading => l10n.sending,
+                _SendState.success => l10n.sent,
               },
               style: const TextStyle(
                   color: Colors.white,
@@ -333,14 +337,14 @@ class _SendFab extends StatelessWidget {
   }
 }
 
-class _PreparingPdfDialog extends StatefulWidget {
+class _PreparingPdfDialog extends ConsumerStatefulWidget {
   const _PreparingPdfDialog();
 
   @override
-  State<_PreparingPdfDialog> createState() => _PreparingPdfDialogState();
+  ConsumerState<_PreparingPdfDialog> createState() => _PreparingPdfDialogState();
 }
 
-class _PreparingPdfDialogState extends State<_PreparingPdfDialog>
+class _PreparingPdfDialogState extends ConsumerState<_PreparingPdfDialog>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -360,6 +364,7 @@ class _PreparingPdfDialogState extends State<_PreparingPdfDialog>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
@@ -386,12 +391,12 @@ class _PreparingPdfDialogState extends State<_PreparingPdfDialog>
               ),
             ),
             const SizedBox(height: 18),
-            const Text('Preparing invoice...',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            Text(l10n.preparingInvoice,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             const SizedBox(height: 6),
-            const Text('Generating PDF...',
+            Text(l10n.generatingPdf,
                 style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                    const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
           ],
         ),
       ),
@@ -399,13 +404,14 @@ class _PreparingPdfDialogState extends State<_PreparingPdfDialog>
   }
 }
 
-class _PdfReadyDialog extends StatelessWidget {
+class _PdfReadyDialog extends ConsumerWidget {
   final File file;
   final String invoiceNumber;
   const _PdfReadyDialog({required this.file, required this.invoiceNumber});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Center(
       child: Material(
         color: Colors.transparent,
@@ -429,15 +435,15 @@ class _PdfReadyDialog extends StatelessWidget {
                     color: AppColors.success, size: 30),
               ),
               const SizedBox(height: 16),
-              const Text('PDF ready',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(l10n.pdfReady,
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               const SizedBox(height: 4),
               Text('$invoiceNumber.pdf',
                   style: const TextStyle(
                       color: AppColors.textSecondary, fontSize: 12.5)),
               const SizedBox(height: 20),
               AppButton(
-                label: 'Open PDF',
+                label: l10n.openPdf,
                 icon: Icons.open_in_new_rounded,
                 expand: true,
                 onPressed: () async {
@@ -448,19 +454,19 @@ class _PdfReadyDialog extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AppButton(
-                label: 'Share',
+                label: l10n.share,
                 type: AppButtonStyleType.outline,
                 icon: Icons.ios_share_rounded,
                 expand: true,
                 onPressed: () async {
                   Navigator.pop(context);
                   await Share.shareXFiles([XFile(file.path)],
-                      text: 'Invoice $invoiceNumber');
+                      text: l10n.shareInvoiceText(invoiceNumber));
                 },
               ),
               const SizedBox(height: 10),
               AppButton(
-                label: 'Close',
+                label: l10n.close,
                 type: AppButtonStyleType.text,
                 expand: true,
                 onPressed: () => Navigator.pop(context),
@@ -473,28 +479,29 @@ class _PdfReadyDialog extends StatelessWidget {
   }
 }
 
-class _ShareSheet extends StatelessWidget {
+class _ShareSheet extends ConsumerWidget {
   final Invoice invoice;
   final File? imageFile;
   const _ShareSheet({required this.invoice, this.imageFile});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     final options = [
       ('WhatsApp', Icons.chat_rounded, AppColors.success),
-      ('Email', Icons.email_rounded, AppColors.themedPrimary(context)),
+      (l10n.emailLabel, Icons.email_rounded, AppColors.themedPrimary(context)),
       ('Telegram', Icons.send_rounded, const Color(0xFF29A9EA)),
-      ('Other Apps', Icons.more_horiz_rounded, AppColors.textSecondary),
+      (l10n.otherApps, Icons.more_horiz_rounded, AppColors.textSecondary),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Send Invoice',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(l10n.sendInvoiceTitle,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text('Share via',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+        Text(l10n.shareVia,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
         const SizedBox(height: 18),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -502,8 +509,8 @@ class _ShareSheet extends StatelessWidget {
               .map((o) => PressableScale(
                     onTap: () async {
                       Navigator.pop(context);
-                      final text =
-                          'Here is your invoice ${invoice.invoiceNumber}, total ${invoice.total.toStringAsFixed(0)}.';
+                      final text = l10n.shareTextMessage(
+                          invoice.invoiceNumber, invoice.total.toStringAsFixed(0));
                       if (imageFile != null) {
                         await Share.shareXFiles([XFile(imageFile!.path)],
                             text: text);
@@ -538,22 +545,22 @@ class _ShareSheet extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           leading:
               Icon(Icons.link_rounded, color: AppColors.themedPrimary(context)),
-          title: const Text('Copy Invoice Link',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+          title: Text(l10n.copyInvoiceLink,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
           onTap: () {
             Navigator.pop(context);
-            AppSnackbar.show(context, message: 'Invoice link copied');
+            AppSnackbar.show(context, message: l10n.invoiceLinkCopied);
           },
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading:
               Icon(Icons.tag_rounded, color: AppColors.themedPrimary(context)),
-          title: const Text('Copy Invoice Number',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+          title: Text(l10n.copyInvoiceNumber,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
           onTap: () {
             Navigator.pop(context);
-            AppSnackbar.show(context, message: 'Invoice number copied');
+            AppSnackbar.show(context, message: l10n.invoiceNumberCopied);
           },
         ),
       ],

@@ -12,6 +12,17 @@ class AppFormatters {
     return '$symbol${_currency.format(rounded)}';
   }
 
+  /// Short form for tight spaces like chart labels, e.g. Rp1.8Jt, Rp450Rb.
+  static String moneyCompact(double value, {String symbol = 'Rp'}) {
+    final v = value.abs();
+    String trimZero(double n) =>
+        n % 1 == 0 ? n.toStringAsFixed(0) : n.toStringAsFixed(1);
+    if (v >= 1000000000) return '$symbol${trimZero(value / 1000000000)}M';
+    if (v >= 1000000) return '$symbol${trimZero(value / 1000000)}Jt';
+    if (v >= 1000) return '$symbol${trimZero(value / 1000)}Rb';
+    return '$symbol${value.toStringAsFixed(0)}';
+  }
+
   static String date(DateTime date) => _date.format(date);
   static String dateInput(DateTime date) => _dateInput.format(date);
 }

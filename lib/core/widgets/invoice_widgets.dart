@@ -1,10 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
 import '../animations/app_motion.dart';
+import '../localization/app_strings.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
 import 'widgets.dart';
@@ -18,7 +21,7 @@ const Color _paperInk = Color(0xFF202124);
 
 /// Invoice list/dashboard row card. Wrapped in a [Hero] so tapping it
 /// morphs smoothly into the Invoice Detail screen.
-class InvoiceListCard extends StatelessWidget {
+class InvoiceListCard extends ConsumerWidget {
   final Invoice invoice;
   final String customerName;
   final VoidCallback onTap;
@@ -31,7 +34,8 @@ class InvoiceListCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     final firstItem = invoice.items.isNotEmpty ? invoice.items.first : null;
     final extraItems = invoice.items.length - 1;
     final accent = AppColors.themedPrimary(context);
@@ -91,7 +95,7 @@ class InvoiceListCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         extraItems > 0
-                            ? '${firstItem.name} +$extraItems more'
+                            ? '${firstItem.name} ${l10n.moreItemsSuffix(extraItems)}'
                             : firstItem.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -174,7 +178,7 @@ class InvoiceItemRow extends StatelessWidget {
 
 /// The bill summary block (subtotal / discount / tax / shipping / total)
 /// shown in Create Invoice and the invoice preview.
-class TotalSummary extends StatelessWidget {
+class TotalSummary extends ConsumerWidget {
   final double subtotal;
   final double discount;
   final double tax;
@@ -220,14 +224,15 @@ class TotalSummary extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     final accent = AppColors.themedPrimary(context);
     final content = Column(
       children: [
-        _row('Subtotal', subtotal),
-        if (discount > 0) _row('Discount', discount, negative: true),
-        if (tax > 0) _row('Tax', tax),
-        if (shipping > 0) _row('Shipping', shipping),
+        _row(l10n.subtotal, subtotal),
+        if (discount > 0) _row(l10n.discount, discount, negative: true),
+        if (tax > 0) _row(l10n.tax, tax),
+        if (shipping > 0) _row(l10n.shipping, shipping),
         const Padding(
             padding: EdgeInsets.symmetric(vertical: 6),
             child: Divider(height: 1)),
@@ -236,8 +241,8 @@ class TotalSummary extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('TOTAL',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(l10n.total.toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               animateTotal
                   ? AnimatedNumber(
                       value: total,
@@ -262,7 +267,7 @@ class TotalSummary extends StatelessWidget {
 
 /// The full "printable paper" look for the invoice — used both on-screen
 /// in Invoice Preview and mirrored by the PDF generator.
-class InvoicePaper extends StatelessWidget {
+class InvoicePaper extends ConsumerWidget {
   final Invoice invoice;
   final Customer? customer;
   final BusinessProfile business;
@@ -278,7 +283,8 @@ class InvoicePaper extends StatelessWidget {
       this.template = 0});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     final isModern = template == 1;
     final isMinimal = template == 2;
     final Color brandColor =
@@ -385,7 +391,7 @@ class InvoicePaper extends StatelessWidget {
                               spacing: 8,
                               runSpacing: 4,
                               children: [
-                                Text('INVOICE ${invoice.invoiceNumber}',
+                                Text(l10n.invoicePaperTitle(invoice.invoiceNumber),
                                     style: TextStyle(
                                         fontWeight: FontWeight.w900,
                                         fontStyle: FontStyle.italic,
@@ -403,7 +409,7 @@ class InvoicePaper extends StatelessWidget {
                             if (invoice.poNumber.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
-                                child: Text('Ref: ${invoice.poNumber}',
+                                child: Text(l10n.refLine(invoice.poNumber),
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
@@ -478,14 +484,14 @@ class InvoicePaper extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('BILL TO',
-                              style: TextStyle(
+                          Text(l10n.billTo,
+                              style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w800,
                                   color: _paperMuted,
                                   letterSpacing: 0.6)),
                           const SizedBox(height: 6),
-                          Text(customer?.name ?? 'Walk-in Customer',
+                          Text(customer?.name ?? l10n.walkInCustomer,
                               style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
@@ -516,16 +522,16 @@ class InvoicePaper extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          _MetaRow('INVOICE DATE',
+                          _MetaRow(l10n.invoiceDate.toUpperCase(),
                               AppFormatters.dateInput(invoice.invoiceDate)),
                           const SizedBox(height: 10),
                           _MetaRow(
-                              'DUE DATE',
+                              l10n.dueDate.toUpperCase(),
                               invoice.dueDate != null
                                   ? AppFormatters.dateInput(invoice.dueDate!)
-                                  : 'On Receipt'),
+                                  : l10n.onReceiptShort),
                           const SizedBox(height: 10),
-                          _MetaRow('BALANCE DUE',
+                          _MetaRow(l10n.balanceDue.toUpperCase(),
                               AppFormatters.money(invoice.balanceDue),
                               valueColor: AppColors.danger),
                         ],
@@ -538,8 +544,8 @@ class InvoicePaper extends StatelessWidget {
                 // Items — a clean, spacious receipt-style list instead of
                 // a cramped multi-column grid (which truncated on narrow
                 // screens). Each item gets its own two-line block.
-                const Text('ITEMS',
-                    style: TextStyle(
+                Text(l10n.itemsTitle.toUpperCase(),
+                    style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                         color: _paperMuted,
@@ -621,19 +627,19 @@ class InvoicePaper extends StatelessWidget {
                   final totalsBox = Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      _TotalRow('SUBTOTAL', invoice.subtotal),
+                      _TotalRow(l10n.subtotal.toUpperCase(), invoice.subtotal),
                       if (invoice.discount > 0)
-                        _TotalRow('DISCOUNT', invoice.discount, negative: true),
-                      if (invoice.tax > 0) _TotalRow('TAX', invoice.tax),
+                        _TotalRow(l10n.discount.toUpperCase(), invoice.discount, negative: true),
+                      if (invoice.tax > 0) _TotalRow(l10n.tax.toUpperCase(), invoice.tax),
                       if (invoice.shipping > 0)
-                        _TotalRow('SHIPPING', invoice.shipping),
+                        _TotalRow(l10n.shipping.toUpperCase(), invoice.shipping),
                       const Padding(
                           padding: EdgeInsets.symmetric(vertical: 4),
                           child: Divider(height: 1)),
-                      _TotalRow('TOTAL', invoice.total, bold: true),
+                      _TotalRow(l10n.total.toUpperCase(), invoice.total, bold: true),
                       if (invoice.amountPaid > 0)
                         _TotalRow(
-                            'PAID (${AppFormatters.dateInput(invoice.updatedAt)})',
+                            l10n.paidOn(AppFormatters.dateInput(invoice.updatedAt)),
                             invoice.amountPaid),
                       Container(
                         margin: const EdgeInsets.only(top: 6),
@@ -644,7 +650,7 @@ class InvoicePaper extends StatelessWidget {
                                   color: AppColors.danger, width: 1.4)),
                         ),
                         width: double.infinity,
-                        child: _TotalRow('BALANCE DUE', invoice.balanceDue,
+                        child: _TotalRow(l10n.balanceDue.toUpperCase(), invoice.balanceDue,
                             bold: true, color: AppColors.danger),
                       ),
                     ],
@@ -660,8 +666,8 @@ class InvoicePaper extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('PAYMENT INSTRUCTIONS',
-                            style: TextStyle(
+                        Text(l10n.paymentInstruction.toUpperCase(),
+                            style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 color: _paperMuted,
@@ -715,7 +721,7 @@ class InvoicePaper extends StatelessWidget {
                                             color: _paperMuted, size: 48),
                                   ),
                                   const SizedBox(height: 10),
-                                  const Text('Scan the QRIS code to pay.',
+                                  Text(l10n.scanQrisToPay,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                           fontSize: 12,
@@ -732,16 +738,15 @@ class InvoicePaper extends StatelessWidget {
                               detailSpans = [
                                 TextSpan(
                                     text:
-                                        '${business.eWalletProvider.isNotEmpty ? business.eWalletProvider : 'E-Wallet'}: '),
+                                        '${business.eWalletProvider.isNotEmpty ? business.eWalletProvider : l10n.paymentMethodLabel('E-Wallet')}: '),
                                 TextSpan(
                                     text: business.eWalletNumber,
                                     style: emphasized),
                               ];
                               break;
                             case 'Cash':
-                              detailSpans = const [
-                                TextSpan(
-                                    text: 'Payment due in cash upon receipt.'),
+                              detailSpans = [
+                                TextSpan(text: l10n.paymentDueCash),
                               ];
                               break;
                             default:
@@ -764,7 +769,7 @@ class InvoicePaper extends StatelessWidget {
                                   height: 1.5),
                               children: [
                                 TextSpan(
-                                    text: '$method: ',
+                                    text: '${l10n.paymentMethodLabel(method)}: ',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         color: _paperInk)),
@@ -802,8 +807,8 @@ class InvoicePaper extends StatelessWidget {
                   const SizedBox(height: 20),
                   const Divider(height: 1),
                   const SizedBox(height: 14),
-                  const Text('NOTES',
-                      style: TextStyle(
+                  Text(l10n.notesLabel,
+                      style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: _paperMuted,
@@ -821,8 +826,8 @@ class InvoicePaper extends StatelessWidget {
                   const SizedBox(height: 20),
                   const Divider(height: 1),
                   const SizedBox(height: 14),
-                  const Text('ATTACHMENT',
-                      style: TextStyle(
+                  Text(l10n.attachmentLabel,
+                      style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: _paperMuted,
@@ -842,8 +847,8 @@ class InvoicePaper extends StatelessWidget {
                   const SizedBox(height: 20),
                   const Divider(height: 1),
                   const SizedBox(height: 14),
-                  const Text('APPROVAL',
-                      style: TextStyle(
+                  Text(l10n.approvalLabel,
+                      style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: _paperMuted,
@@ -857,8 +862,10 @@ class InvoicePaper extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     invoice.isApproved
-                        ? 'Approved by ${invoice.approverName.isNotEmpty ? invoice.approverName : "customer"}'
-                        : 'Pending approval',
+                        ? l10n.approvedBy(invoice.approverName.isNotEmpty
+                            ? invoice.approverName
+                            : l10n.customerFallback)
+                        : l10n.pendingApproval,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

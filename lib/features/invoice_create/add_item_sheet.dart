@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../data/database/app_database.dart';
+import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
+import '../products/add_product_sheet.dart';
 
 const _uuid = Uuid();
 
@@ -13,15 +18,15 @@ enum _DiscountType { flat, percent }
 
 /// Bottom sheet form for adding or editing a single invoice item
 /// (spec section 12): name, price, quantity, discount, tax.
-class AddItemSheet extends StatefulWidget {
+class AddItemSheet extends ConsumerStatefulWidget {
   final InvoiceItem? existing;
   const AddItemSheet({super.key, this.existing});
 
   @override
-  State<AddItemSheet> createState() => _AddItemSheetState();
+  ConsumerState<AddItemSheet> createState() => _AddItemSheetState();
 }
 
-class _AddItemSheetState extends State<AddItemSheet> {
+class _AddItemSheetState extends ConsumerState<AddItemSheet> {
   late final TextEditingController _name;
   late final TextEditingController _price;
   late final TextEditingController _qty;
@@ -60,6 +65,33 @@ class _AddItemSheetState extends State<AddItemSheet> {
     return price * qty * entered / 100;
   }
 
+  Future<void> _pickFromCatalog() async {
+    final products = ref.read(productRepositoryProvider);
+    final selected = await showAppBottomSheet<Object>(
+      context,
+      child: _ProductPickerSheet(products: products),
+    );
+    if (!mounted) return;
+    if (selected == 'NEW') {
+      final created = await showAppBottomSheet<Map<String, String>>(context, child: const AddProductSheet());
+      if (created == null) return;
+      final product = ref.read(productRepositoryProvider.notifier).add(
+            name: created['name']!,
+            price: double.tryParse(created['price'] ?? '') ?? 0,
+          );
+      _applyProduct(product);
+    } else if (selected is Product) {
+      _applyProduct(selected);
+    }
+  }
+
+  void _applyProduct(Product product) {
+    setState(() {
+      _name.text = product.name;
+      _price.text = _trim(product.price);
+    });
+  }
+
   void _submit() {
     if (_name.text.trim().isEmpty) return;
     final item = InvoiceItem(
@@ -75,20 +107,45 @@ class _AddItemSheetState extends State<AddItemSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.existing != null ? 'Edit Item' : 'Add Item',
+        Text(widget.existing != null ? l10n.editItemTitle : l10n.addItemTitle,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 18),
-        AppTextField(label: 'Product Name', controller: _name, hint: 'e.g. Waffle Tinggi Ori'),
+        Align(
+          alignment: Alignment.centerRight,
+          child: PressableScale(
+            onTap: _pickFromCatalog,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.themedPrimary(context).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.themedPrimary(context)),
+                  const SizedBox(width: 6),
+                  Text(l10n.chooseFromCatalog,
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.themedPrimary(context))),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        AppTextField(label: l10n.productNameLabel, controller: _name, hint: l10n.productNameHint),
         const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
               child: AppTextField(
-                label: 'Price',
+                label: l10n.priceLabel,
                 controller: _price,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 prefix: const Padding(padding: EdgeInsets.only(left: 14), child: Text('Rp', style: TextStyle(color: AppColors.textSecondary))),
@@ -97,7 +154,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: AppTextField(
-                label: 'Quantity',
+                label: l10n.quantityLabel,
                 controller: _qty,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
@@ -109,7 +166,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
           children: [
             Expanded(
               child: AppTextField(
-                label: 'Discount',
+                label: l10n.discount,
                 controller: _discount,
                 hint: '0',
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -122,10 +179,10 @@ class _AddItemSheetState extends State<AddItemSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: AppTextField(
-                label: 'Tax',
+                label: l10n.tax,
                 controller: _tax,
                 hint: AppDatabase.settings.defaultTaxPercent > 0
-                    ? '0 (default ${AppDatabase.settings.defaultTaxPercent.toStringAsFixed(0)}%)'
+                    ? l10n.defaultTaxHint(AppDatabase.settings.defaultTaxPercent.toStringAsFixed(0))
                     : '0',
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
@@ -134,7 +191,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
         ),
         const SizedBox(height: 22),
         AppButton(
-          label: widget.existing != null ? 'Save Changes' : 'Add Item',
+          label: widget.existing != null ? l10n.saveItemChanges : l10n.addItemTitle,
           icon: Icons.check_rounded,
           expand: true,
           onPressed: _submit,
@@ -172,6 +229,118 @@ class _DiscountTypeDropdown extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Lets the user search the saved product catalog and either pick one
+/// (returns the [Product]) or jump into creating a new one (returns the
+/// string `'NEW'`), mirroring `_CustomerPickerSheet` in Create Invoice.
+class _ProductPickerSheet extends ConsumerStatefulWidget {
+  final List<Product> products;
+  const _ProductPickerSheet({required this.products});
+
+  @override
+  ConsumerState<_ProductPickerSheet> createState() => _ProductPickerSheetState();
+}
+
+class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+  bool _searchExpanded = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
+    final accent = AppColors.themedPrimary(context);
+    final filtered = _query.isEmpty
+        ? widget.products
+        : widget.products.where((p) => p.name.toLowerCase().contains(_query.toLowerCase())).toList();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.selectProduct, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 14),
+        CollapsibleSearchBar(
+          controller: _searchController,
+          expanded: _searchExpanded,
+          hintText: l10n.searchProductHint,
+          onToggle: () => setState(() {
+            _searchExpanded = !_searchExpanded;
+            if (!_searchExpanded) {
+              _searchController.clear();
+              _query = '';
+            }
+          }),
+          onChanged: (v) => setState(() => _query = v),
+        ),
+        const SizedBox(height: 10),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 300),
+          child: filtered.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Center(
+                    child: Text(l10n.noProductsFoundInSearch,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    children: filtered
+                        .map((p) => PressableScale(
+                              scaleDown: 0.99,
+                              onTap: () => Navigator.pop(context, p),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Theme.of(context).dividerColor),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color: accent.withOpacity(0.14),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(Icons.inventory_2_rounded, color: accent, size: 16),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                        child: Text(p.name,
+                                            style: const TextStyle(fontWeight: FontWeight.w700))),
+                                    MoneyText(
+                                        value: p.price,
+                                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+        ),
+        const SizedBox(height: 6),
+        AppButton(
+          label: l10n.newProduct,
+          type: AppButtonStyleType.outline,
+          expand: true,
+          onPressed: () => Navigator.pop(context, 'NEW'),
+        ),
+      ],
     );
   }
 }

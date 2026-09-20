@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../core/widgets/invoice_widgets.dart';
+import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
 import 'add_item_sheet.dart';
 
@@ -9,15 +12,15 @@ import 'add_item_sheet.dart';
 /// Invoice's "Add Item" row instead of showing the list inline in the
 /// (already long) invoice form. Mutates [items] in place so the caller's
 /// list is up to date as soon as this screen is popped.
-class InvoiceItemsScreen extends StatefulWidget {
+class InvoiceItemsScreen extends ConsumerStatefulWidget {
   final List<InvoiceItem> items;
   const InvoiceItemsScreen({super.key, required this.items});
 
   @override
-  State<InvoiceItemsScreen> createState() => _InvoiceItemsScreenState();
+  ConsumerState<InvoiceItemsScreen> createState() => _InvoiceItemsScreenState();
 }
 
-class _InvoiceItemsScreenState extends State<InvoiceItemsScreen> {
+class _InvoiceItemsScreenState extends ConsumerState<InvoiceItemsScreen> {
   double get _subtotal => widget.items.fold(0.0, (sum, i) => sum + i.lineSubtotal);
 
   Future<void> _addItem() async {
@@ -37,14 +40,15 @@ class _InvoiceItemsScreenState extends State<InvoiceItemsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Scaffold(
-      appBar: AppBar(title: const Text('Items')),
+      appBar: AppBar(title: Text(l10n.itemsTitle)),
       body: SafeArea(
         child: widget.items.isEmpty
             ? EmptyState(
-                title: 'No items yet',
-                message: 'Add the products or services for this invoice.',
-                actionLabel: 'Add Item',
+                title: l10n.noItemsYetTitle,
+                message: l10n.addItemsMessage,
+                actionLabel: l10n.addItem,
                 onAction: _addItem,
               )
             : ListView(
@@ -67,7 +71,7 @@ class _InvoiceItemsScreenState extends State<InvoiceItemsScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Subtotal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+                        Text(l10n.subtotal, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
                         MoneyText(value: _subtotal, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
                       ],
                     ),
@@ -80,7 +84,7 @@ class _InvoiceItemsScreenState extends State<InvoiceItemsScreen> {
           : FloatingActionButton.extended(
               onPressed: _addItem,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Item'),
+              label: Text(l10n.addItem),
             ),
     );
   }

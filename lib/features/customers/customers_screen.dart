@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../data/repositories/repositories.dart';
@@ -35,7 +36,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             email: result['email'] ?? '',
             address: result['address'] ?? '',
           );
-      if (mounted) AppSnackbar.show(context, message: 'Customer added');
+      if (mounted) {
+        AppSnackbar.show(context, message: AppStrings(ref.read(localeProvider)).customerAdded);
+      }
     }
   }
 
@@ -43,6 +46,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
   Widget build(BuildContext context) {
     final customers = ref.watch(customerRepositoryProvider);
     final invoices = ref.watch(invoiceRepositoryProvider);
+    final l10n = AppStrings(ref.watch(localeProvider));
 
     List<Invoice> invoicesFor(String id) => invoices.where((i) => i.customerId == id).toList();
 
@@ -60,10 +64,10 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Customers', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                        SizedBox(height: 2),
-                        Text('Everyone you do business with', style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5)),
+                      children: [
+                        Text(l10n.navCustomers, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text(l10n.customersSubtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5)),
                       ],
                     ),
                   ),
@@ -87,7 +91,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             child: CollapsibleSearchBar(
               controller: _searchController,
               expanded: _searching,
-              hintText: 'Search customer...',
+              hintText: l10n.searchCustomerHint,
               onToggle: () {
                 setState(() {
                   _searching = !_searching;
@@ -105,11 +109,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
             child: filtered.isEmpty
                 ? EmptyState(
                     icon: Icons.people_outline_rounded,
-                    title: customers.isEmpty ? 'No customers yet' : 'No customers found',
+                    title: customers.isEmpty ? l10n.noCustomersYetTitle : l10n.noCustomersFoundTitle,
                     message: customers.isEmpty
-                        ? 'Add your first customer to start creating invoices.'
-                        : 'Try a different search term.',
-                    actionLabel: customers.isEmpty ? 'Add Customer' : null,
+                        ? l10n.addFirstCustomerMessage
+                        : l10n.tryDifferentSearchTerm,
+                    actionLabel: customers.isEmpty ? l10n.addCustomer : null,
                     onAction: customers.isEmpty ? _addCustomer : null,
                   )
                 : ListView.separated(
@@ -147,7 +151,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text('${custInvoices.length} invoices',
+                                  Text(l10n.invoicesCount(custInvoices.length),
                                       style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 4),
                                   MoneyText(value: totalSpend, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),

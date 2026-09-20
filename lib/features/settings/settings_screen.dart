@@ -8,9 +8,11 @@ import '../../core/animations/app_motion.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../../data/backup/backup_service.dart';
 import '../../data/database/app_database.dart';
 import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
+import '../products/products_screen.dart';
 import '../reports/transaction_recap_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -97,6 +99,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 '${l10n.language}: ${picked == 'id' ? l10n.languageIndonesian : l10n.languageEnglish}');
         setState(() {});
       }
+    }
+  }
+
+  Future<void> _openBackupRestore() async {
+    final action = await showAppBottomSheet<String>(context,
+        child: const _BackupRestoreSheet());
+    if (!mounted || action == null) return;
+    if (action == 'export') {
+      await _exportBackup();
+    } else if (action == 'restore') {
+      await _restoreBackup();
+    }
+  }
+
+  Future<void> _exportBackup() async {
+    try {
+      await BackupService.shareBackup();
+    } catch (_) {
+      if (mounted) {
+        final l10n = AppStrings(ref.read(localeProvider));
+        AppSnackbar.show(context,
+            message: l10n.backupExportFailed,
+            icon: Icons.error_outline_rounded,
+            color: AppColors.danger);
+      }
+    }
+  }
+
+  String _backupErrorMessage(AppStrings l10n, String code) {
+    switch (code) {
+      case 'invalid_json':
+        return l10n.backupInvalidJson;
+      case 'unsupported_version':
+        return l10n.backupUnsupportedVersion;
+      default:
+        return l10n.backupUnrecognized;
+    }
+  }
+
+  Future<void> _restoreBackup() async {
+    final l10n = AppStrings(ref.read(localeProvider));
+    String? contents;
+    try {
+      contents = await BackupService.pickBackupFileContents();
+    } catch (_) {
+      if (mounted) {
+        AppSnackbar.show(context,
+            message: l10n.backupUnrecognized,
+            icon: Icons.error_outline_rounded,
+            color: AppColors.danger);
+      }
+      return;
+    }
+    if (contents == null || !mounted) return; // user cancelled the picker
+
+    final BackupData data;
+    try {
+      data = BackupService.parse(contents);
+    } on BackupFormatException catch (e) {
+      AppSnackbar.show(context,
+          message: _backupErrorMessage(l10n, e.message),
+          icon: Icons.error_outline_rounded,
+          color: AppColors.danger);
+      return;
+    }
+
+    if (!mounted) return;
+    final confirmed = await showScaleFadeDialog<bool>(context,
+        child: _ConfirmRestoreDialog(
+            locale: ref.read(localeProvider),
+            customerCount: data.customers.length,
+            invoiceCount: data.invoices.length));
+    if (confirmed != true || !mounted) return;
+
+    await BackupService.restore(data);
+    ref.read(customerRepositoryProvider.notifier).reload();
+    ref.read(invoiceRepositoryProvider.notifier).reload();
+    ref.read(productRepositoryProvider.notifier).reload();
+    ref.read(themeModeProvider.notifier).reload();
+    ref.read(localeProvider.notifier).reload();
+
+    if (mounted) {
+      setState(() {});
+      AppSnackbar.show(context,
+          message: AppStrings(ref.read(localeProvider)).restoreSuccess,
+          icon: Icons.check_circle_rounded,
+          color: AppColors.success);
     }
   }
 
@@ -193,6 +282,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: l10n.taxSettings,
                   trailing: '${settings.defaultTaxPercent.toStringAsFixed(0)}%',
                   onTap: _editTaxSettings,
+                ),
+                _SettingsItem(
+                  icon: Icons.inventory_2_rounded,
+                  label: l10n.productsAndServices,
+                  trailing: '${ref.watch(productRepositoryProvider).length}',
+                  onTap: () => Navigator.of(context)
+                      .push(SlideFadeRoute(page: const ProductsScreen())),
                 ),
               ],
             ),
@@ -306,9 +402,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _SettingsItem(
                   icon: Icons.cloud_sync_rounded,
                   label: l10n.backupRestore,
-                  onTap: () => AppSnackbar.show(context,
-                      message: l10n.dataAlreadySavedLocally,
-                      icon: Icons.storage_rounded),
+                  onTap: _openBackupRestore,
                 ),
                 _SettingsItem(
                   icon: Icons.info_outline_rounded,
@@ -1104,6 +1198,167 @@ class _LanguageSheet extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _BackupRestoreSheet extends ConsumerWidget {
+  const _BackupRestoreSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.backupRestore,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text(l10n.backupRestoreDescription,
+            style: const TextStyle(
+                color: AppColors.textSecondary, fontSize: 12.5)),
+        const SizedBox(height: 16),
+        _BackupRestoreRow(
+          icon: Icons.upload_file_rounded,
+          iconColor: AppColors.success,
+          title: l10n.exportBackup,
+          subtitle: l10n.exportBackupDescription,
+          onTap: () => Navigator.pop(context, 'export'),
+        ),
+        const SizedBox(height: 10),
+        _BackupRestoreRow(
+          icon: Icons.download_rounded,
+          iconColor: AppColors.warning,
+          title: l10n.restoreBackup,
+          subtitle: l10n.restoreBackupDescription,
+          onTap: () => Navigator.pop(context, 'restore'),
+        ),
+      ],
+    );
+  }
+}
+
+class _BackupRestoreRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _BackupRestoreRow({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      scaleDown: 0.99,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.center,
+              child: Icon(icon, color: iconColor, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfirmRestoreDialog extends StatelessWidget {
+  final String locale;
+  final int customerCount;
+  final int invoiceCount;
+  const _ConfirmRestoreDialog({
+    required this.locale,
+    required this.customerCount,
+    required this.invoiceCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppStrings(locale);
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+              color: AppColors.solidSurface(context),
+              borderRadius: BorderRadius.circular(22)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: AppColors.warning, size: 36),
+              const SizedBox(height: 14),
+              Text(l10n.confirmRestoreTitle,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 8),
+              Text(l10n.confirmRestoreMessage(customerCount, invoiceCount),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13)),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.cancel,
+                      type: AppButtonStyleType.outline,
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: AppButton(
+                      label: l10n.restoreAction,
+                      type: AppButtonStyleType.danger,
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

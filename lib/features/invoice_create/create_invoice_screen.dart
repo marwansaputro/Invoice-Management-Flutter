@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:signature/signature.dart';
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../data/repositories/repositories.dart';
@@ -50,6 +51,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
 
   static const _paymentMethods = ['Bank Transfer', 'Cash', 'QRIS', 'E-Wallet'];
 
+  AppStrings get _l10n => AppStrings(ref.read(localeProvider));
+
   Invoice? get _existing => widget.existingInvoiceId == null
       ? null
       : ref.read(invoiceRepositoryProvider.notifier).byId(widget.existingInvoiceId!);
@@ -79,7 +82,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
       _customerId = customers.isNotEmpty ? customers.first.id : '';
       _invoiceNumber = ref.read(invoiceRepositoryProvider.notifier).generateInvoiceNumber();
       _invoiceDate = DateTime.now();
-      _notesController.text = 'Thank you for shopping with us!';
+      _notesController.text = _l10n.defaultThankYouNote;
       final settings = AppDatabase.settings;
       _signatureBytes = settings.savedSignatureBytes != null
           ? Uint8List.fromList(settings.savedSignatureBytes!)
@@ -175,13 +178,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
           controller: controller,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(prefixText: 'Rp ', hintText: '0'),
+          decoration: InputDecoration(prefixText: _l10n.amountPrefix, hintText: '0'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(_l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(context, double.tryParse(controller.text.replaceAll(',', '')) ?? 0),
-            child: const Text('Save'),
+            child: Text(_l10n.save),
           ),
         ],
       ),
@@ -253,11 +256,11 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
 
   Future<void> _save({bool andPreview = false}) async {
     if (_customerId.isEmpty) {
-      AppSnackbar.show(context, message: 'Please select a customer first', icon: Icons.info_rounded, color: AppColors.warning);
+      AppSnackbar.show(context, message: _l10n.selectCustomerFirst, icon: Icons.info_rounded, color: AppColors.warning);
       return;
     }
     if (_items.isEmpty) {
-      AppSnackbar.show(context, message: 'Add at least one item', icon: Icons.info_rounded, color: AppColors.warning);
+      AppSnackbar.show(context, message: _l10n.addAtLeastOneItem, icon: Icons.info_rounded, color: AppColors.warning);
       return;
     }
     setState(() => _saving = true);
@@ -268,7 +271,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     if (andPreview) {
       Navigator.of(context).pushReplacement(SlideFadeRoute(page: InvoicePreviewScreen(invoiceId: invoice.id)));
     } else {
-      AppSnackbar.show(context, message: 'Invoice saved');
+      AppSnackbar.show(context, message: _l10n.invoiceSaved);
       Navigator.of(context).pop();
     }
   }
@@ -276,6 +279,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customerRepositoryProvider);
+    final l10n = AppStrings(ref.watch(localeProvider));
     final business = AppDatabase.business;
     Customer? customer;
     try {
@@ -287,13 +291,13 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.pop(context)),
-        title: Text(_existing != null ? 'Edit Invoice' : 'Create Invoice'),
+        title: Text(_existing != null ? l10n.editInvoiceTitle : l10n.createInvoiceTitle),
         actions: [
           TextButton(
             onPressed: _saving ? null : () => _save(),
             child: _saving
                 ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Save', style: TextStyle(fontWeight: FontWeight.w800)),
+                : Text(l10n.save, style: const TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -312,7 +316,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Invoice #', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text(l10n.invoiceNumberLabel, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 3),
                         Text(_invoiceNumber, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
                       ],
@@ -323,7 +327,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(_dueOnReceipt ? 'Due on Receipt' : 'Due Date',
+                        Text(_dueOnReceipt ? l10n.dueOnReceipt : l10n.dueDate,
                             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 3),
                         Text(_dueOnReceipt ? _fmtDate(_invoiceDate) : _fmtDate(_dueDate!),
@@ -342,7 +346,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Invoice Date', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(l10n.invoiceDate, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   Text(_fmtDate(_invoiceDate), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textSecondary)),
                 ],
               ),
@@ -353,7 +357,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               iconColor: AppColors.themedPrimary(context),
               onTap: _editBusinessInfo,
               trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-              child: Text(business.businessName.isNotEmpty ? business.businessName : 'Business Info',
+              child: Text(business.businessName.isNotEmpty ? business.businessName : l10n.businessInfo,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
             const SizedBox(height: 10),
@@ -363,7 +367,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               onTap: _pickCustomer,
               trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
               child: Text(
-                customer != null ? 'To: ${customer.name}' : 'To: Select Customer',
+                customer != null ? l10n.toCustomer(customer.name) : l10n.toSelectCustomer,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
@@ -378,10 +382,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               child: TextField(
                 controller: _poController,
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: 'PO / Reference Number',
+                  hintText: l10n.poReferenceNumber,
                 ),
               ),
             ),
@@ -395,7 +399,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               onTap: _manageItems,
               trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
               child: Text(
-                _items.isEmpty ? 'Add Item' : '${_items.length} Item${_items.length > 1 ? 's' : ''}',
+                _items.isEmpty ? l10n.addItem : l10n.itemsCount(_items.length),
                 style: TextStyle(
                   color: _items.isEmpty ? AppColors.textSecondary : null,
                   fontWeight: FontWeight.w700,
@@ -404,44 +408,44 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            _DarkBar(label: 'Subtotal', value: _subtotal),
+            _DarkBar(label: l10n.subtotal, value: _subtotal),
             const SizedBox(height: 16),
 
             // Adjustments
             _FlatRow(
               icon: Icons.percent_rounded,
               iconColor: AppColors.themedSecondary(context),
-              onTap: () => _editAmount(title: 'Discount', value: _discount, onSaved: (v) => setState(() => _discount = v)),
-              child: _AmountRowContent(label: 'Discount', value: _discount),
+              onTap: () => _editAmount(title: l10n.discount, value: _discount, onSaved: (v) => setState(() => _discount = v)),
+              child: _AmountRowContent(label: l10n.discount, value: _discount),
             ),
             const SizedBox(height: 10),
             _FlatRow(
               icon: Icons.receipt_long_rounded,
               iconColor: AppColors.themedPrimary(context),
-              onTap: () => _editAmount(title: 'Tax', value: _tax, onSaved: (v) => setState(() => _tax = v)),
-              child: _AmountRowContent(label: 'Tax', value: _tax),
+              onTap: () => _editAmount(title: l10n.tax, value: _tax, onSaved: (v) => setState(() => _tax = v)),
+              child: _AmountRowContent(label: l10n.tax, value: _tax),
             ),
             const SizedBox(height: 10),
             _FlatRow(
               icon: Icons.local_shipping_rounded,
               iconColor: AppColors.success,
-              onTap: () => _editAmount(title: 'Shipping', value: _shipping, onSaved: (v) => setState(() => _shipping = v)),
-              child: _AmountRowContent(label: 'Shipping', value: _shipping),
+              onTap: () => _editAmount(title: l10n.shipping, value: _shipping, onSaved: (v) => setState(() => _shipping = v)),
+              child: _AmountRowContent(label: l10n.shipping, value: _shipping),
             ),
             const SizedBox(height: 10),
             _FlatRow(
               icon: Icons.summarize_rounded,
               iconColor: AppColors.themedPrimary(context),
-              child: _AmountRowContent(label: 'Total', value: _total, bold: true),
+              child: _AmountRowContent(label: l10n.total, value: _total, bold: true),
             ),
             const SizedBox(height: 10),
             _FlatRow(
               icon: Icons.payments_rounded,
               iconColor: AppColors.success,
-              child: _AmountRowContent(label: 'Payments', value: _amountPaid),
+              child: _AmountRowContent(label: l10n.payments, value: _amountPaid),
             ),
             const SizedBox(height: 10),
-            _DarkBar(label: 'Balance Due', value: _balanceDue),
+            _DarkBar(label: l10n.balanceDue, value: _balanceDue),
             const SizedBox(height: 16),
 
             // Attachment
@@ -456,7 +460,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                       child: const Icon(Icons.close_rounded, color: AppColors.danger),
                     ),
               child: _attachmentBytes == null
-                  ? const Text('Add Photo', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 14))
+                  ? Text(l10n.addPhoto, style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 14))
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.memory(_attachmentBytes!, height: 44, width: 44, fit: BoxFit.cover),
@@ -473,9 +477,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Payment Instruction', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text(l10n.paymentInstruction, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(_paymentMethod.isEmpty ? 'Bank Transfer' : _paymentMethod, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(l10n.paymentMethodLabel(_paymentMethod.isEmpty ? 'Bank Transfer' : _paymentMethod), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                 ],
               ),
             ),
@@ -489,14 +493,14 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               trailing: _signatureBytes != null
                   ? Image.memory(_signatureBytes!, height: 32, width: 60, fit: BoxFit.contain)
                   : const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-              child: const Text('Signature', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              child: Text(l10n.signature, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
             const SizedBox(height: 10),
             _FlatRow(
               icon: Icons.verified_rounded,
               iconColor: AppColors.success,
               trailing: Switch(value: _isApproved, onChanged: (v) => setState(() => _isApproved = v)),
-              child: const Text('Approved by customer', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              child: Text(l10n.approvedByCustomer, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             ),
             if (_isApproved) ...[
               const SizedBox(height: 10),
@@ -506,7 +510,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                 child: TextField(
                   controller: _approverController,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                  decoration: const InputDecoration(isDense: true, border: InputBorder.none, hintText: 'Approver name'),
+                  decoration: InputDecoration(isDense: true, border: InputBorder.none, hintText: l10n.approverName),
                 ),
               ),
             ],
@@ -521,7 +525,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                 maxLines: 3,
                 minLines: 1,
                 style: const TextStyle(fontSize: 13.5),
-                decoration: const InputDecoration(isDense: true, border: InputBorder.none, hintText: 'Add a note for your customer...'),
+                decoration: InputDecoration(isDense: true, border: InputBorder.none, hintText: l10n.noteHint),
               ),
             ),
             const SizedBox(height: 20),
@@ -544,7 +548,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                         const SizedBox(width: 6),
                       ],
                       Text(
-                        _markAsPaid ? 'Marked as Paid' : 'Mark Paid',
+                        _markAsPaid ? l10n.markedAsPaid : l10n.markPaid,
                         style: TextStyle(
                           color: _markAsPaid ? Colors.white : AppColors.themedPrimary(context),
                           fontWeight: FontWeight.w800,
@@ -568,7 +572,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
             : const Icon(Icons.visibility_rounded),
-        label: Text(_saving ? 'Saving...' : 'Save & Preview'),
+        label: Text(_saving ? l10n.saving : l10n.saveAndPreview),
       ),
     );
   }
@@ -692,25 +696,26 @@ class _PaymentMethodChip extends StatelessWidget {
   }
 }
 
-class _PaymentMethodSheet extends StatelessWidget {
+class _PaymentMethodSheet extends ConsumerWidget {
   final List<String> methods;
   final String selected;
   const _PaymentMethodSheet({required this.methods, required this.selected});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Payment Method', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(l10n.paymentMethod, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 14),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: methods
               .map((m) => _PaymentMethodChip(
-                    label: m,
+                    label: l10n.paymentMethodLabel(m),
                     selected: selected == m,
                     onTap: () => Navigator.pop(context, m),
                   ))
@@ -724,22 +729,23 @@ class _PaymentMethodSheet extends StatelessWidget {
 
 /// Bottom sheet wrapper around [_SignaturePad] so the drawing surface only
 /// takes over the screen when the user taps the Signature row.
-class _SignatureSheet extends StatelessWidget {
+class _SignatureSheet extends ConsumerWidget {
   final Uint8List? initialBytes;
   final ValueChanged<Uint8List?> onChanged;
   const _SignatureSheet({required this.initialBytes, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Signature', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(l10n.signature, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 14),
         _SignaturePad(initialBytes: initialBytes, onChanged: onChanged),
         const SizedBox(height: 14),
-        AppButton(label: 'Done', expand: true, onPressed: () => Navigator.pop(context)),
+        AppButton(label: l10n.done, expand: true, onPressed: () => Navigator.pop(context)),
       ],
     );
   }
@@ -749,16 +755,16 @@ class _SignatureSheet extends StatelessWidget {
 /// handles touch/mouse/stylus input (including pressure-sensitive styluses)
 /// natively — far more reliable than a hand-rolled GestureDetector — and
 /// exports the drawn strokes as a transparent PNG whenever a stroke ends.
-class _SignaturePad extends StatefulWidget {
+class _SignaturePad extends ConsumerStatefulWidget {
   final Uint8List? initialBytes;
   final ValueChanged<Uint8List?> onChanged;
   const _SignaturePad({this.initialBytes, required this.onChanged});
 
   @override
-  State<_SignaturePad> createState() => _SignaturePadState();
+  ConsumerState<_SignaturePad> createState() => _SignaturePadState();
 }
 
-class _SignaturePadState extends State<_SignaturePad> {
+class _SignaturePadState extends ConsumerState<_SignaturePad> {
   late final SignatureController _controller;
 
   @override
@@ -789,6 +795,7 @@ class _SignaturePadState extends State<_SignaturePad> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -798,19 +805,19 @@ class _SignaturePadState extends State<_SignaturePad> {
             Expanded(
               child: Text(
                 widget.initialBytes != null
-                    ? 'Draw below to replace the current signature'
-                    : 'Draw below',
+                    ? l10n.drawBelowToReplace
+                    : l10n.drawBelow,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: AppColors.textSecondary),
               ),
             ),
-            TextButton(onPressed: _clear, child: const Text('Clear')),
+            TextButton(onPressed: _clear, child: Text(l10n.clear)),
           ],
         ),
         if (widget.initialBytes != null) ...[
           const SizedBox(height: 8),
           Row(
             children: [
-              const Text('Current: ', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text(l10n.currentSignature, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
@@ -838,16 +845,16 @@ class _SignaturePadState extends State<_SignaturePad> {
   }
 }
 
-class _CustomerPickerSheet extends StatefulWidget {
+class _CustomerPickerSheet extends ConsumerStatefulWidget {
   final List<Customer> customers;
   final String selectedId;
   const _CustomerPickerSheet({required this.customers, required this.selectedId});
 
   @override
-  State<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
+  ConsumerState<_CustomerPickerSheet> createState() => _CustomerPickerSheetState();
 }
 
-class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
+class _CustomerPickerSheetState extends ConsumerState<_CustomerPickerSheet> {
   final _searchController = TextEditingController();
   String _query = '';
   bool _searchExpanded = false;
@@ -860,6 +867,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     final accent = AppColors.themedPrimary(context);
     final filtered = _query.isEmpty
         ? widget.customers
@@ -871,12 +879,12 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Select Customer', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(l10n.selectCustomer, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 14),
         CollapsibleSearchBar(
           controller: _searchController,
           expanded: _searchExpanded,
-          hintText: 'Search customer...',
+          hintText: l10n.searchCustomerHint,
           onToggle: () => setState(() {
             _searchExpanded = !_searchExpanded;
             if (!_searchExpanded) {
@@ -893,7 +901,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 28),
                   child: Center(
-                    child: Text('No customers found',
+                    child: Text(l10n.noCustomersFoundInSearch,
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                   ),
                 )
@@ -933,7 +941,7 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
         ),
         const SizedBox(height: 6),
         AppButton(
-          label: '+ New Customer',
+          label: l10n.newCustomer,
           type: AppButtonStyleType.outline,
           expand: true,
           onPressed: () => Navigator.pop(context, 'NEW'),

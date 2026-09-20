@@ -1,8 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../animations/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../localization/app_strings.dart';
+import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
 
 /// ------------------------- BUTTON -------------------------
@@ -141,12 +144,13 @@ class AppCard extends StatelessWidget {
 
 /// ------------------------- STATUS BADGE -------------------------
 
-class StatusBadge extends StatelessWidget {
+class StatusBadge extends ConsumerWidget {
   final InvoiceStatus status;
   const StatusBadge({super.key, required this.status});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppStrings(ref.watch(localeProvider));
     late Color color;
     switch (status) {
       case InvoiceStatus.paid:
@@ -172,7 +176,7 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.label,
+        l10n.statusLabel(status),
         style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.4),
       ),
     );

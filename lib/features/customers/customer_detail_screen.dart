@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../core/widgets/invoice_widgets.dart';
@@ -17,6 +18,7 @@ class CustomerDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final customers = ref.watch(customerRepositoryProvider);
     final invoices = ref.watch(invoiceRepositoryProvider);
+    final l10n = AppStrings(ref.watch(localeProvider));
     Customer? customer;
     try {
       customer = customers.firstWhere((c) => c.id == customerId);
@@ -24,7 +26,7 @@ class CustomerDetailScreen extends ConsumerWidget {
       customer = null;
     }
     if (customer == null) {
-      return const Scaffold(body: Center(child: Text('Customer not found')));
+      return Scaffold(body: Center(child: Text(l10n.customerNotFound)));
     }
 
     final custInvoices = invoices.where((i) => i.customerId == customerId).toList();
@@ -34,7 +36,7 @@ class CustomerDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Detail'),
+        title: Text(l10n.customerDetailTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_rounded),
@@ -85,7 +87,7 @@ class CustomerDetailScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: AppColors.success.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
-                      child: const Text('Active', style: TextStyle(color: AppColors.success, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                      child: Text(l10n.activeStatus, style: const TextStyle(color: AppColors.success, fontSize: 11.5, fontWeight: FontWeight.w800)),
                     ),
                   ],
                 ),
@@ -97,11 +99,11 @@ class CustomerDetailScreen extends ConsumerWidget {
               child: AppCard(
                 child: Column(
                   children: [
-                    _ContactRow(icon: Icons.call_rounded, label: 'Phone', value: customer.phone.isEmpty ? '—' : customer.phone),
+                    _ContactRow(icon: Icons.call_rounded, label: l10n.phoneLabel, value: customer.phone.isEmpty ? '—' : customer.phone),
                     const Divider(height: 22),
-                    _ContactRow(icon: Icons.email_rounded, label: 'Email', value: customer.email.isEmpty ? '—' : customer.email),
+                    _ContactRow(icon: Icons.email_rounded, label: l10n.emailLabel, value: customer.email.isEmpty ? '—' : customer.email),
                     const Divider(height: 22),
-                    _ContactRow(icon: Icons.location_on_rounded, label: 'Address', value: customer.address.isEmpty ? '—' : customer.address),
+                    _ContactRow(icon: Icons.location_on_rounded, label: l10n.addressLabel, value: customer.address.isEmpty ? '—' : customer.address),
                   ],
                 ),
               ),
@@ -111,11 +113,11 @@ class CustomerDetailScreen extends ConsumerWidget {
               delay: const Duration(milliseconds: 140),
               child: Row(
                 children: [
-                  Expanded(child: _StatBox(label: 'Total Invoice', value: '${custInvoices.length}')),
+                  Expanded(child: _StatBox(label: l10n.totalInvoiceLabel, value: '${custInvoices.length}')),
                   const SizedBox(width: 10),
-                  Expanded(child: _StatBox(label: 'Paid', value: '$paidCount', color: AppColors.success)),
+                  Expanded(child: _StatBox(label: l10n.paid, value: '$paidCount', color: AppColors.success)),
                   const SizedBox(width: 10),
-                  Expanded(child: _StatBox(label: 'Pending', value: '$pendingCount', color: AppColors.warning)),
+                  Expanded(child: _StatBox(label: l10n.pending, value: '$pendingCount', color: AppColors.warning)),
                 ],
               ),
             ),
@@ -126,19 +128,19 @@ class CustomerDetailScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Revenue', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(l10n.totalRevenue, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                     MoneyText(value: totalRevenue, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: AppColors.themedPrimary(context))),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Recent Invoices', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            Text(l10n.recentInvoices, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             const SizedBox(height: 12),
             if (custInvoices.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: Text('No invoices yet', style: TextStyle(color: AppColors.textSecondary))),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: Text(l10n.noInvoicesYetTitle, style: const TextStyle(color: AppColors.textSecondary))),
               )
             else
               ...custInvoices.take(6).toList().asMap().entries.map(

@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../models/models.dart';
+import '../localization/app_strings.dart';
 
 /// Builds a professional-looking, printable PDF for a given invoice,
 /// mirroring the on-screen [InvoicePaper] layout.
@@ -22,7 +23,9 @@ class PdfGenerator {
     required Customer? customer,
     required BusinessProfile business,
     int template = 0,
+    String locale = 'en',
   }) async {
+    final l10n = AppStrings(locale);
     final doc = pw.Document();
 
     final isModern = template == 1;
@@ -47,11 +50,11 @@ class PdfGenerator {
           return [
             pw.TextSpan(
                 text:
-                    '${business.eWalletProvider.isNotEmpty ? business.eWalletProvider : 'E-Wallet'}: '),
+                    '${business.eWalletProvider.isNotEmpty ? business.eWalletProvider : l10n.paymentMethodLabel('E-Wallet')}: '),
             pw.TextSpan(text: business.eWalletNumber, style: emphasized),
           ];
         case 'Cash':
-          return const [pw.TextSpan(text: 'Payment due in cash upon receipt.')];
+          return [pw.TextSpan(text: l10n.paymentDueCash)];
         default:
           return [
             pw.TextSpan(
@@ -122,7 +125,7 @@ class PdfGenerator {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('INVOICE ${invoice.invoiceNumber}',
+                          pw.Text(l10n.invoicePaperTitle(invoice.invoiceNumber),
                               style: pw.TextStyle(
                                   fontWeight: pw.FontWeight.bold,
                                   fontStyle: pw.FontStyle.italic,
@@ -135,7 +138,7 @@ class PdfGenerator {
                                   fontSize: 11,
                                   color: headerInk)),
                           if (invoice.poNumber.isNotEmpty)
-                            pw.Text('Ref: ${invoice.poNumber}',
+                            pw.Text(l10n.refLine(invoice.poNumber),
                                 style: pw.TextStyle(
                                     color: headerMuted, fontSize: 9)),
                         ],
@@ -180,13 +183,13 @@ class PdfGenerator {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text('BILL TO',
+                        pw.Text(l10n.billTo,
                             style: pw.TextStyle(
                                 fontSize: 9,
                                 color: secondaryGrey,
                                 fontWeight: pw.FontWeight.bold)),
                         pw.SizedBox(height: 4),
-                        pw.Text(customer?.name ?? 'Walk-in Customer',
+                        pw.Text(customer?.name ?? l10n.walkInCustomer,
                             style: pw.TextStyle(
                                 fontSize: 12, fontWeight: pw.FontWeight.bold)),
                         if ((customer?.address ?? '').isNotEmpty)
@@ -206,20 +209,20 @@ class PdfGenerator {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         _metaRow(
-                            'INVOICE DATE',
+                            l10n.invoiceDate.toUpperCase(),
                             _date.format(invoice.invoiceDate),
                             secondaryGrey,
                             dark),
                         pw.SizedBox(height: 3),
                         _metaRow(
-                            'INVOICE DUE',
+                            l10n.invoiceDueLabel,
                             invoice.dueDate != null
                                 ? _date.format(invoice.dueDate!)
-                                : 'Due On Receipt',
+                                : l10n.dueOnReceiptLong,
                             secondaryGrey,
                             dark),
                         pw.SizedBox(height: 3),
-                        _metaRow('BALANCE DUE', _money(invoice.balanceDue),
+                        _metaRow(l10n.balanceDue.toUpperCase(), _money(invoice.balanceDue),
                             secondaryGrey, danger),
                       ],
                     ),
@@ -238,30 +241,30 @@ class PdfGenerator {
                 },
                 children: [
                   pw.TableRow(children: [
-                    pw.Text('DESCRIPTION',
+                    pw.Text(l10n.descriptionLabel,
                         style: pw.TextStyle(
                             fontSize: 8.5,
                             fontWeight: pw.FontWeight.bold,
                             color: secondaryGrey)),
-                    pw.Text('RATE',
+                    pw.Text(l10n.rateLabel,
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                             fontSize: 8.5,
                             fontWeight: pw.FontWeight.bold,
                             color: secondaryGrey)),
-                    pw.Text('QTY',
+                    pw.Text(l10n.qtyLabel,
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                             fontSize: 8.5,
                             fontWeight: pw.FontWeight.bold,
                             color: secondaryGrey)),
-                    pw.Text('DISCOUNT',
+                    pw.Text(l10n.discount.toUpperCase(),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                             fontSize: 8.5,
                             fontWeight: pw.FontWeight.bold,
                             color: secondaryGrey)),
-                    pw.Text('TOTAL',
+                    pw.Text(l10n.total.toUpperCase(),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                             fontSize: 8.5,
@@ -345,7 +348,7 @@ class PdfGenerator {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('PAYMENT INSTRUCTIONS',
+                          pw.Text(l10n.paymentInstruction.toUpperCase(),
                               style: pw.TextStyle(
                                   fontSize: 8.5,
                                   color: secondaryGrey,
@@ -359,7 +362,7 @@ class PdfGenerator {
                                     pw.CrossAxisAlignment.center,
                                 children: [
                                   if (business.qrisId.isNotEmpty)
-                                    pw.Text('MID: ${business.qrisId}',
+                                    pw.Text(l10n.qrisMid(business.qrisId),
                                         textAlign: pw.TextAlign.center,
                                         style: pw.TextStyle(
                                             fontWeight: pw.FontWeight.bold,
@@ -385,7 +388,7 @@ class PdfGenerator {
                                   ),
                                   pw.SizedBox(height: 8),
                                   pw.Text(
-                                    'Scan the QRIS code to pay.',
+                                    l10n.scanQrisToPay,
                                     textAlign: pw.TextAlign.center,
                                     style: pw.TextStyle(
                                         fontSize: 9, color: secondaryGrey),
@@ -400,7 +403,7 @@ class PdfGenerator {
                                     fontSize: 9.5, color: secondaryGrey),
                                 children: [
                                   pw.TextSpan(
-                                    text: '$paymentMethodLabel: ',
+                                    text: '${l10n.paymentMethodLabel(paymentMethodLabel)}: ',
                                     style: pw.TextStyle(
                                         fontWeight: pw.FontWeight.bold,
                                         color: dark),
@@ -419,21 +422,21 @@ class PdfGenerator {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                       children: [
-                        _totalRow('Subtotal', _money(invoice.subtotal),
+                        _totalRow(l10n.subtotal, _money(invoice.subtotal),
                             secondaryGrey),
                         if (invoice.discount > 0)
-                          _totalRow('Discount', '-${_money(invoice.discount)}',
+                          _totalRow(l10n.discount, '-${_money(invoice.discount)}',
                               secondaryGrey),
                         if (invoice.tax > 0)
-                          _totalRow('Tax', _money(invoice.tax), secondaryGrey),
+                          _totalRow(l10n.tax, _money(invoice.tax), secondaryGrey),
                         if (invoice.shipping > 0)
-                          _totalRow('Shipping', _money(invoice.shipping),
+                          _totalRow(l10n.shipping, _money(invoice.shipping),
                               secondaryGrey),
                         pw.Divider(color: borderGrey),
-                        _totalRow('TOTAL', _money(invoice.total), dark,
+                        _totalRow(l10n.total.toUpperCase(), _money(invoice.total), dark,
                             bold: true),
                         if (invoice.amountPaid > 0)
-                          _totalRow('Paid (${_date.format(invoice.updatedAt)})',
+                          _totalRow(l10n.paidOn(_date.format(invoice.updatedAt)),
                               _money(invoice.amountPaid), secondaryGrey),
                         pw.Container(
                           margin: const pw.EdgeInsets.only(top: 4),
@@ -442,7 +445,7 @@ class PdfGenerator {
                               border: pw.Border(
                                   top: pw.BorderSide(color: danger, width: 1))),
                           child: _totalRow(
-                              'BALANCE DUE', _money(invoice.balanceDue), danger,
+                              l10n.balanceDue.toUpperCase(), _money(invoice.balanceDue), danger,
                               bold: true),
                         ),
                       ],
@@ -454,7 +457,7 @@ class PdfGenerator {
                 pw.SizedBox(height: 20),
                 pw.Divider(color: borderGrey),
                 pw.SizedBox(height: 10),
-                pw.Text('NOTES',
+                pw.Text(l10n.notesLabel,
                     style: pw.TextStyle(
                         fontSize: 9,
                         color: secondaryGrey,
@@ -470,7 +473,7 @@ class PdfGenerator {
                 pw.SizedBox(height: 16),
                 pw.Divider(color: borderGrey),
                 pw.SizedBox(height: 10),
-                pw.Text('ATTACHMENT',
+                pw.Text(l10n.attachmentLabel,
                     style: pw.TextStyle(
                         fontSize: 9,
                         color: secondaryGrey,
@@ -486,7 +489,7 @@ class PdfGenerator {
                 pw.SizedBox(height: 16),
                 pw.Divider(color: borderGrey),
                 pw.SizedBox(height: 10),
-                pw.Text('APPROVAL',
+                pw.Text(l10n.approvalLabel,
                     style: pw.TextStyle(
                         fontSize: 9,
                         color: secondaryGrey,
@@ -502,8 +505,10 @@ class PdfGenerator {
                 pw.SizedBox(height: 4),
                 pw.Text(
                   invoice.isApproved
-                      ? 'Approved by ${invoice.approverName.isNotEmpty ? invoice.approverName : "customer"}'
-                      : 'Pending approval',
+                      ? l10n.approvedBy(invoice.approverName.isNotEmpty
+                          ? invoice.approverName
+                          : l10n.customerFallback)
+                      : l10n.pendingApproval,
                   style: pw.TextStyle(
                       fontSize: 9.5,
                       fontWeight: pw.FontWeight.bold,

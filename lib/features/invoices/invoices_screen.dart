@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/animations/app_motion.dart';
+import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/invoice_widgets.dart';
 import '../../core/widgets/widgets.dart';
@@ -24,6 +25,21 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   bool _loading = true;
 
   final _filters = const ['All', 'Paid', 'Unpaid', 'Overdue', 'Draft'];
+
+  String _filterLabel(String key, AppStrings l10n) {
+    switch (key) {
+      case 'Paid':
+        return l10n.paid;
+      case 'Unpaid':
+        return l10n.filterUnpaid;
+      case 'Overdue':
+        return l10n.overdue;
+      case 'Draft':
+        return l10n.filterDraft;
+      default:
+        return l10n.filterAll;
+    }
+  }
 
   @override
   void initState() {
@@ -59,12 +75,13 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
   Widget build(BuildContext context) {
     final invoices = ref.watch(invoiceRepositoryProvider);
     final customers = ref.watch(customerRepositoryProvider);
+    final l10n = AppStrings(ref.watch(localeProvider));
 
     String customerName(String id) {
       try {
         return customers.firstWhere((c) => c.id == id).name;
       } catch (_) {
-        return 'Walk-in Customer';
+        return l10n.walkInCustomer;
       }
     }
 
@@ -82,7 +99,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
+            Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: AnimatedEntry(
                 offsetY: 10,
@@ -91,13 +108,13 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Invoices',
-                              style: TextStyle(
+                        children: [
+                          Text(l10n.invoicesTitle,
+                              style: const TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.w800)),
-                          SizedBox(height: 2),
-                          Text('Manage all your invoices',
-                              style: TextStyle(
+                          const SizedBox(height: 2),
+                          Text(l10n.manageAllInvoices,
+                              style: const TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13.5)),
                         ],
@@ -113,7 +130,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
               child: CollapsibleSearchBar(
                 controller: _searchController,
                 expanded: _searching,
-                hintText: 'Search invoice...',
+                hintText: l10n.searchInvoiceHint,
                 onToggle: () {
                   setState(() {
                     _searching = !_searching;
@@ -155,7 +172,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 : Theme.of(context).dividerColor),
                       ),
                       child: Text(
-                        f,
+                        _filterLabel(f, l10n),
                         style: TextStyle(
                           color:
                               selected ? Colors.white : AppColors.textSecondary,
@@ -180,8 +197,8 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                   : filtered.isEmpty
                       ? EmptyState(
                           icon: Icons.search_off_rounded,
-                          title: 'No invoices found',
-                          message: 'Try a different search term or filter.',
+                          title: l10n.noInvoicesFoundTitle,
+                          message: l10n.noInvoicesFoundMessage,
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
@@ -213,9 +230,9 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       .delete(invoice.id);
                                   AppSnackbar.show(
                                     context,
-                                    message: 'Invoice deleted',
+                                    message: l10n.invoiceDeleted,
                                     icon: Icons.delete_rounded,
-                                    actionLabel: 'UNDO',
+                                    actionLabel: l10n.undo,
                                     onAction: () => ref
                                         .read(
                                             invoiceRepositoryProvider.notifier)

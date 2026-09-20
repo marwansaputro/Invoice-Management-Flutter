@@ -7,39 +7,35 @@ import '../../core/widgets/widgets.dart';
 import '../../data/repositories/repositories.dart';
 import '../../models/models.dart';
 
-/// Bottom sheet for creating or editing a customer. Returns a map of
-/// field values via Navigator.pop for the caller to persist.
-class AddCustomerSheet extends ConsumerStatefulWidget {
-  final Customer? existing;
+/// Bottom sheet for creating or editing a saved product/service. Returns a
+/// map of field values via Navigator.pop for the caller to persist.
+class AddProductSheet extends ConsumerStatefulWidget {
+  final Product? existing;
   final VoidCallback? onDelete;
-  const AddCustomerSheet({super.key, this.existing, this.onDelete});
+  const AddProductSheet({super.key, this.existing, this.onDelete});
 
   @override
-  ConsumerState<AddCustomerSheet> createState() => _AddCustomerSheetState();
+  ConsumerState<AddProductSheet> createState() => _AddProductSheetState();
 }
 
-class _AddCustomerSheetState extends ConsumerState<AddCustomerSheet> {
+class _AddProductSheetState extends ConsumerState<AddProductSheet> {
   late final TextEditingController _name;
-  late final TextEditingController _phone;
-  late final TextEditingController _email;
-  late final TextEditingController _address;
+  late final TextEditingController _price;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
     _name = TextEditingController(text: e?.name ?? '');
-    _phone = TextEditingController(text: e?.phone ?? '');
-    _email = TextEditingController(text: e?.email ?? '');
-    _address = TextEditingController(text: e?.address ?? '');
+    _price = TextEditingController(text: e != null ? _trim(e.price) : '');
   }
+
+  String _trim(double v) => v % 1 == 0 ? v.toInt().toString() : v.toString();
 
   @override
   void dispose() {
     _name.dispose();
-    _phone.dispose();
-    _email.dispose();
-    _address.dispose();
+    _price.dispose();
     super.dispose();
   }
 
@@ -47,16 +43,14 @@ class _AddCustomerSheetState extends ConsumerState<AddCustomerSheet> {
     if (_name.text.trim().isEmpty) return;
     Navigator.pop(context, {
       'name': _name.text.trim(),
-      'phone': _phone.text.trim(),
-      'email': _email.text.trim(),
-      'address': _address.text.trim(),
+      'price': (double.tryParse(_price.text.replaceAll(',', '')) ?? 0).toString(),
     });
   }
 
   Future<void> _delete() async {
     final confirm = await showScaleFadeDialog<bool>(
       context,
-      child: _ConfirmDeleteCustomerDialog(customerName: widget.existing!.name),
+      child: _ConfirmDeleteProductDialog(productName: widget.existing!.name),
     );
     if (confirm == true && mounted) {
       widget.onDelete?.call();
@@ -72,19 +66,25 @@ class _AddCustomerSheetState extends ConsumerState<AddCustomerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.existing != null ? l10n.editCustomerTitle : l10n.newCustomerTitle,
+          Text(widget.existing != null ? l10n.editProductTitle : l10n.newProductTitle,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 18),
-          AppTextField(label: l10n.fullNameLabel, controller: _name, hint: l10n.fullNameHint),
+          AppTextField(
+              label: l10n.productNameLabel,
+              controller: _name,
+              hint: l10n.productNameHint),
           const SizedBox(height: 14),
-          AppTextField(label: l10n.phoneNumberLabel, controller: _phone, hint: '0812-xxxx-xxxx', keyboardType: TextInputType.phone),
-          const SizedBox(height: 14),
-          AppTextField(label: l10n.emailLabel, controller: _email, hint: 'name@email.com', keyboardType: TextInputType.emailAddress),
-          const SizedBox(height: 14),
-          AppTextField(label: l10n.addressLabel, controller: _address, hint: l10n.addressHint, maxLines: 2),
+          AppTextField(
+            label: l10n.priceLabel,
+            controller: _price,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            prefix: const Padding(
+                padding: EdgeInsets.only(left: 14),
+                child: Text('Rp', style: TextStyle(color: AppColors.textSecondary))),
+          ),
           const SizedBox(height: 22),
           AppButton(
-            label: widget.existing != null ? l10n.saveChanges : l10n.addCustomer,
+            label: widget.existing != null ? l10n.saveChanges : l10n.addProduct,
             icon: Icons.check_rounded,
             expand: true,
             onPressed: _submit,
@@ -92,7 +92,7 @@ class _AddCustomerSheetState extends ConsumerState<AddCustomerSheet> {
           if (widget.existing != null) ...[
             const SizedBox(height: 10),
             AppButton(
-              label: l10n.deleteCustomer,
+              label: l10n.deleteProduct,
               type: AppButtonStyleType.danger,
               icon: Icons.delete_outline_rounded,
               expand: true,
@@ -105,9 +105,9 @@ class _AddCustomerSheetState extends ConsumerState<AddCustomerSheet> {
   }
 }
 
-class _ConfirmDeleteCustomerDialog extends ConsumerWidget {
-  final String customerName;
-  const _ConfirmDeleteCustomerDialog({required this.customerName});
+class _ConfirmDeleteProductDialog extends ConsumerWidget {
+  final String productName;
+  const _ConfirmDeleteProductDialog({required this.productName});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -127,10 +127,12 @@ class _ConfirmDeleteCustomerDialog extends ConsumerWidget {
             children: [
               const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 36),
               const SizedBox(height: 14),
-              Text(l10n.confirmDeleteCustomerTitle(customerName), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              Text(l10n.confirmDeleteProductTitle(productName),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
               const SizedBox(height: 8),
-              Text(l10n.confirmDeleteCustomerMessage,
-                  textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text(l10n.confirmDeleteProductMessage,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: 20),
               Row(
                 children: [

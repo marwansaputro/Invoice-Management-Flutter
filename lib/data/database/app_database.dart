@@ -10,11 +10,13 @@ class AppDatabase {
   static const String invoicesBoxName = 'invoices_box';
   static const String businessBoxName = 'business_box';
   static const String settingsBoxName = 'settings_box';
+  static const String productsBoxName = 'products_box';
 
   static late Box<Customer> customersBox;
   static late Box<Invoice> invoicesBox;
   static late Box<BusinessProfile> businessBox;
   static late Box<InvoiceSettingsModel> settingsBox;
+  static late Box<Product> productsBox;
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -24,11 +26,13 @@ class AppDatabase {
     Hive.registerAdapter(InvoiceAdapter());
     Hive.registerAdapter(BusinessProfileAdapter());
     Hive.registerAdapter(InvoiceSettingsAdapter());
+    Hive.registerAdapter(ProductAdapter());
 
     customersBox = await Hive.openBox<Customer>(customersBoxName);
     invoicesBox = await Hive.openBox<Invoice>(invoicesBoxName);
     businessBox = await Hive.openBox<BusinessProfile>(businessBoxName);
     settingsBox = await Hive.openBox<InvoiceSettingsModel>(settingsBoxName);
+    productsBox = await Hive.openBox<Product>(productsBoxName);
   }
 
   static BusinessProfile get business {

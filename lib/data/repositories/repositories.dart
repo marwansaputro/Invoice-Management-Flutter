@@ -12,6 +12,10 @@ class CustomerRepository extends StateNotifier<List<Customer>> {
 
   void _refresh() => state = AppDatabase.customersBox.values.toList();
 
+  /// Re-reads everything from Hive — used after a bulk restore replaces
+  /// the box contents out from under this notifier's cached state.
+  void reload() => _refresh();
+
   Customer add({
     required String name,
     String phone = '',
@@ -52,6 +56,52 @@ class CustomerRepository extends StateNotifier<List<Customer>> {
 final customerRepositoryProvider =
     StateNotifierProvider<CustomerRepository, List<Customer>>((ref) => CustomerRepository());
 
+/// ------------------------- PRODUCTS -------------------------
+
+class ProductRepository extends StateNotifier<List<Product>> {
+  ProductRepository() : super(_sorted());
+
+  static List<Product> _sorted() {
+    final list = AppDatabase.productsBox.values.toList();
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
+
+  void _refresh() => state = _sorted();
+
+  /// Re-reads everything from Hive — used after a bulk restore replaces
+  /// the box contents out from under this notifier's cached state.
+  void reload() => _refresh();
+
+  Product add({required String name, required double price}) {
+    final product = Product(id: _uuid.v4(), name: name, price: price);
+    AppDatabase.productsBox.put(product.id, product);
+    _refresh();
+    return product;
+  }
+
+  void update(Product product) {
+    AppDatabase.productsBox.put(product.id, product);
+    _refresh();
+  }
+
+  void delete(String id) {
+    AppDatabase.productsBox.delete(id);
+    _refresh();
+  }
+
+  Product? byId(String id) {
+    try {
+      return state.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+final productRepositoryProvider =
+    StateNotifierProvider<ProductRepository, List<Product>>((ref) => ProductRepository());
+
 /// ------------------------- INVOICES -------------------------
 
 class InvoiceRepository extends StateNotifier<List<Invoice>> {
@@ -64,6 +114,10 @@ class InvoiceRepository extends StateNotifier<List<Invoice>> {
   }
 
   void _refresh() => state = _sorted();
+
+  /// Re-reads everything from Hive — used after a bulk restore replaces
+  /// the box contents out from under this notifier's cached state.
+  void reload() => _refresh();
 
   String generateInvoiceNumber() {
     final settings = AppDatabase.settings;
@@ -186,6 +240,9 @@ class ThemeModeController extends StateNotifier<int> {
     settings.save();
     state = mode;
   }
+
+  /// Re-reads from Hive — used after a bulk restore.
+  void reload() => state = AppDatabase.settings.themeMode;
 }
 
 final themeModeProvider = StateNotifierProvider<ThemeModeController, int>((ref) => ThemeModeController());
@@ -199,6 +256,9 @@ class LocaleController extends StateNotifier<String> {
     settings.save();
     state = locale;
   }
+
+  /// Re-reads from Hive — used after a bulk restore.
+  void reload() => state = AppDatabase.settings.locale;
 }
 
 final localeProvider = StateNotifierProvider<LocaleController, String>((ref) => LocaleController());
